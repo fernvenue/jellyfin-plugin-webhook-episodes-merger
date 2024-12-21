@@ -19,6 +19,7 @@ type WebhookRequest struct {
 	SeriesName    string `json:"SeriesName"`
 	SeasonNumber  int    `json:"SeasonNumber"`
 	EpisodeNumber int    `json:"EpisodeNumber"`
+	EpisodeName   string `json:"EpisodeName"`
 }
 
 type QueueKey struct {
@@ -28,6 +29,7 @@ type QueueKey struct {
 
 type Episode struct {
 	EpisodeNumber int
+	EpisodeName   string
 }
 
 type QueueValue struct {
@@ -40,6 +42,7 @@ type Config struct {
 	ListenPort       int
 	WaitSecond       int
 	TextContent      string
+	TextKey          string
 	EpisodeFormat    string
 	TargetURL        string
 	AdditionalParams string
@@ -56,8 +59,9 @@ func main() {
 	flag.StringVar(&config.ListenAddress, "listen-address", "::1", "")
 	flag.IntVar(&config.ListenPort, "listen-port", 8520, "")
 	flag.IntVar(&config.WaitSecond, "wait-second", 300, "")
+	flag.StringVar(&config.TextKey, "text-key", "text", "")
 	flag.StringVar(&config.TextContent, "text-content", "📺 <b>Episode update reminder:</b> <b>{{.SeriesName}}</b> <b>Season {{.SeasonNumber}}</b>\n", "")
-	flag.StringVar(&config.EpisodeFormat, "episode-format", "\nEpisode {{.EpisodeNumber}}", "")
+	flag.StringVar(&config.EpisodeFormat, "episode-format", "\nEpisode {{.EpisodeNumber}} {{.EpisodeName}}", "")
 	flag.StringVar(&config.TargetURL, "target-url", "", "")
 	flag.StringVar(&config.AdditionalParams, "additional-params", "{}", "")
 	flag.StringVar(&config.ContentHeader, "content-header", "text", "")
@@ -95,7 +99,10 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		value = QueueValue{SeriesName: req.SeriesName, Episodes: []Episode{}}
 	}
-	value.Episodes = append(value.Episodes, Episode{EpisodeNumber: req.EpisodeNumber})
+	value.Episodes = append(value.Episodes, Episode{
+		EpisodeNumber: req.EpisodeNumber,
+		EpisodeName:   req.EpisodeName,
+	})
 	queue[key] = value
 	mu.Unlock()
 
@@ -131,7 +138,31 @@ func processQueue(key QueueKey) {
 		log.Printf("Error unmarshalling additional params: %v", err)
 		return
 	}
-	params[config.ContentHeader] = text
+
+	tmpl, err := template.New("additionalParams").Parse(config.AdditionalParams)
+	if err != nil {
+		log.Printf("Error parsing additional params template: %v", err)
+		return
+	}
+
+	var paramBuf strings.Builder
+	err = tmpl.Execute(&paramBuf, struct {
+		SeriesId string
+	}{
+		SeriesId: key.SeriesId,
+	})
+	if err != nil {
+		log.Printf("Error executing additional params template: %v", err)
+		return
+	}
+
+	finalParams := paramBuf.String()
+	if err := json.Unmarshal([]byte(finalParams), &params); err != nil {
+		log.Printf("Error unmarshalling final params: %v", err)
+		return
+	}
+
+	params[config.TextKey] = text
 
 	body, _ := json.Marshal(params)
 
@@ -182,8 +213,10 @@ func buildText(seriesName string, seasonNumber int, episodes []Episode) (string,
 	for _, ep := range episodes {
 		epData := struct {
 			EpisodeNumber int
+			EpisodeName   string
 		}{
 			EpisodeNumber: ep.EpisodeNumber,
+			EpisodeName:   ep.EpisodeName,
 		}
 		if err := episodeTmpl.Execute(&episodeTextBuf, epData); err != nil {
 			return "", fmt.Errorf("failed to execute episode template: %v", err)
