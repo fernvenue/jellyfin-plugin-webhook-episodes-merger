@@ -41,9 +41,9 @@ Episode 3 EpisodeTitle...
 ...
 ```
 
-### Custom Push Format
+### Custom Push Format (Or you would like to use another language to notify.)
 
-Here, taking Chinese users as an example, we can use parameters like this:
+If you don't want to use the default notification format, or if you want to use a language other than English for notifications, here, taking Chinese users as an example, we can use parameters like this:
 
 ```
 --text-content "📺 <b>單集更新提醒:</b> <b>{{.SeriesName}}</b> <b>第 {{.SeasonNumber}} 季</b>\n" --episode-format "\n第 {{.EpisodeNumber}} 集"
