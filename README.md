@@ -4,7 +4,7 @@
 [![jellyfin-plugin-webhook-episodes-merger](https://img.shields.io/badge/GitHub-Jellyfin%20Webhook%20Plugin%20Episodes%20Merger-blueviolet?style=flat-square&logo=github)](https://github.com/fernvenue/jellyfin-plugin-webhook-episodes-merger)
 [![jellyfin-plugin-webhook-episodes-merger](https://img.shields.io/badge/GitLab-Jellyfin%20Webhook%20Plugin%20Episodes%20Merger-orange?style=flat-square&logo=gitlab)](https://gitlab.com/fernvenue/jellyfin-plugin-webhook-episodes-merger)
 
-Merge the webhooks of Episodes based on queue.
+Merge the webhooks of Episodes based on queue, work with [jellyfin/jellyfin-plugin-webhook](https://github.com/jellyfin/jellyfin-plugin-webhook).
 
 ## Usage
 
