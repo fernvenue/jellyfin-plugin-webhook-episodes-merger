@@ -23,7 +23,8 @@ In the Webhook configuration page of Jellyfin, select **Add Generic Destination*
   "SeriesId": "{{SeriesId}}",
   "SeriesName": "{{SeriesName}}",
   "SeasonNumber": {{SeasonNumber}},
-  "EpisodeNumber": {{EpisodeNumber}}
+  "EpisodeNumber": {{EpisodeNumber}},
+  "EpisodeName": "{{Name}}"
 }
 ```
 
@@ -34,9 +35,9 @@ Then you will receive a notification, like this:
 ```
 📺 Episode update reminder: Series Season 1
 
-Episode 1
-Episode 2
-Episode 3
+Episode 1 EpisodeTitle...
+Episode 2 EpisodeTitle...
+Episode 3 EpisodeTitle...
 ...
 ```
 
@@ -45,29 +46,61 @@ Episode 3
 Here, taking Chinese users as an example, we can use parameters like this:
 
 ```
---text-content "📺 <b>单集更新提醒:</b> <b>{{.SeriesName}}</b> <b>第 {{.SeasonNumber}} 季</b>\n" --episode-format "\n第 {{.EpisodeNumber}} 集"
+--text-content "📺 <b>單集更新提醒:</b> <b>{{.SeriesName}}</b> <b>第 {{.SeasonNumber}} 季</b>\n" --episode-format "\n第 {{.EpisodeNumber}} 集"
 ```
 
 Then we can receive notifications like this:
 
 ```
-📺 单集更新提醒: 某剧 第 n 季
+📺 單集更新提醒: 某劇 第 n 季
 
-第 1 集
-第 2 集
+第 1 集 這一集名
+第 2 集 這一集名
 ```
 
 You can also define additional content to be added to the outgoing requests, fully customizing the received requests and outgoing requests. For specific details, please refer to the help message or the additional instructions in the documentation.
+
+### Push to Telegram with Series Poster
+
+Here we need to go to Jellyfin first, change the **Template** in **Item Type** like this: 
+
+```
+{
+  "SeriesId": "{{SeriesId}}",
+  "SeriesName": "{{SeriesName}}",
+  "SeasonNumber": {{SeasonNumber}},
+  "EpisodeNumber": {{EpisodeNumber}},
+  "EpisodeName": "{{Name}}"
+}
+```
+
+And we should run with:
+
+```
+./jellyfin-plugin-webhook-episodes-merger --target-url "https://api.telegram.org/bot******/sendPhoto" --text-key "caption" --additional-params "{\"chat_id\": \"******\", \"photo\": \"https://***/Items/{{.SeriesId}}/Images/Primary\", \"parse_mode\": \"html\"}"
+```
+
+Other parameters remain unchanged, and then you will receive notifications with Series images.
+
+### Push to Telegram with Series Poster and Redirect Button
+
+As with the previous part, we only need to make a small modification:
+
+```
+./jellyfin-plugin-webhook-episodes-merger --target-url "https://api.telegram.org/bot******/sendPhoto" --text-key "caption" --additional-params "{\"reply_markup\": {\"inline_keyboard\": [[{\"text\": \"Go Check it Out!\", \"url\": \"https://******/web/#/details?id={{.SeriesId}}&serverId=******\"}]]}, \"chat_id\": \"******\", \"photo\": \"https://***/Items/{{.SeriesId}}/Images/Primary\", \"parse_mode\": \"html\"}"
+```
+
+Then you will receive a notification with a jump button!
 
 ## Configuration Options
 
 | Parameter            | Description                                                                 | Default Value                                               |
 |----------------------|-----------------------------------------------------------------------------|-------------------------------------------------------------|
 | `--wait-second`       | The wait time in seconds before merging the notifications.                   | 300                                                         |
-| `--text-content`      | The template for the notification text. You can use variables like `{{.SeriesName}}`. | `📺 <b>Episode update reminder:</b> <b>{{.SeriesName}}</b> <b>Season {{.SeasonNumber}}</b>\n` |
-| `--episode-format`    | The format for each episode's notification. You can use variables like `{{.EpisodeNumber}}`. | `\nEpisode {{.EpisodeNumber}}`                               |
+| `--text-content`      | The template for the notification text. You can use variables like `{{.SeriesName}}`, `{{.SeasonNumber}}`, and `{{.EpisodeName}}`. | `📺 <b>Episode update reminder:</b> <b>{{.SeriesName}}</b> <b>Season {{.SeasonNumber}}</b>\n` |
+| `--text-key`          | The key used for the notification text in the JSON payload, allowing flexibility in JSON structure. | `text`                                                      |
+| `--episode-format`    | The format for each episode's notification. You can use variables like `{{.EpisodeNumber}}` and `{{.EpisodeName}}`. | `\nEpisode {{.EpisodeNumber}}`                               |
 | `--target-url`        | The target URL to send the notification to.                                  | `""` (Must be specified)                                    |
-| `--additional-params` | Additional parameters in JSON format, such as `chat_id` for Telegram.        | `{}` (Valid JSON format)                                    |
-| `--content-header`    | The key for the notification text in the JSON payload.                      | `text`                                                      |
+| `--additional-params` | Additional parameters in JSON format. Supports variables like `{{.SeriesId}}`. Example: `{"chat_id": "******", "photo": "https://example.com/{{.SeriesId}}"}`. | `{}` (Valid JSON format)                                    |
 | `--listen-address`    | The address to listen on. Defaults to `::1`.                                | `::1`                                                       |
-| `--listen-port`       | The port to listen on. Defaults to `8520`.    
+| `--listen-port`       | The port to listen on. Defaults to `8520`.                                  | 8520                                                        |
